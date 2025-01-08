@@ -235,18 +235,24 @@ def evaluate(env, genome, model, n_episodes=5):
   #Return the average reward
   return total_r / n_episodes
 
+def evaluate_worker(genome, n_episodes):
+  #Each process creates its own environment
+  temp_env = gym.make('LunarLander-v3')
+
+  #Each process also has to make its own model
+  model = NeuralPolicyModel(8, 16, 4)
+  genome_to_policymodel(genome, model)
+  
+  fitness = evaluate(temp_env, genome, model, n_episodes)
+  temp_env.close()  # Clean up the environment
+
+  return fitness
+  
 def evaluate_population_parallel(population, env, model, n_episodes = 5, n_workers = 5):
   '''
   '''
-  def evaluate_worker(genome):
-    # Each thread creates its own environment
-    temp_env = gym.make('LunarLander-v3')
-    fitness = evaluate(temp_env, genome, model, n_episodes)
-    temp_env.close()  # Clean up the environment
-    return fitness
-
   with ProcessPoolExecutor(max_workers=n_workers) as executor:
-      fitness_scores = list(executor.map(evaluate_worker, population))
+        fitness_scores = list(executor.map(evaluate_worker, population, [n_episodes] * len(population)))
   return np.array(fitness_scores)
 
 # Training
