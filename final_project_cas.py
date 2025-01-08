@@ -238,8 +238,6 @@ def evaluate(env, genome, model, n_episodes=5):
 def evaluate_population_parallel(population, env, model, n_episodes = 5, n_workers = 5):
   '''
   '''
-  from concurrent.futures import ThreadPoolExecutor
-
   def evaluate_worker(genome):
     # Each thread creates its own environment
     temp_env = gym.make('LunarLander-v3')
@@ -247,7 +245,7 @@ def evaluate_population_parallel(population, env, model, n_episodes = 5, n_worke
     temp_env.close()  # Clean up the environment
     return fitness
 
-  with ThreadPoolExecutor(max_workers=n_workers) as executor:
+  with ProcessPoolExecutor(max_workers=n_workers) as executor:
       fitness_scores = list(executor.map(evaluate_worker, population))
   return np.array(fitness_scores)
 
