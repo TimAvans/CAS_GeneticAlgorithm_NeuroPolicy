@@ -21,6 +21,7 @@ import gymnasium as gym
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import os
 from concurrent.futures import ProcessPoolExecutor
 
 '''
@@ -65,11 +66,6 @@ LunarLander actions:
 2: fire main engine,
 3: fire right orientation engine
 '''
-
-#The initialization of the environment
-env = gym.make('LunarLander-v3')
-observation, info = env.reset()
-
 
 class NeuralPolicyModel(nn.Module):
   '''
@@ -256,9 +252,12 @@ def evaluate_population_parallel(population, env, model, n_episodes = 5, n_worke
   return np.array(fitness_scores)
 
 # Training
-def genetic_algorithm(env, model, population_size, generations, mutation_rate, mutation_scale):
+def genetic_algorithm(env, model, population_size, generations, mutation_rate, mutation_scale, n_eval_episodes = 15, crossover_mode = 'singlepoint', n_kpoints = 3, RUN_ID = None, n_parallelization_workers = 10):
   '''
   '''
+  if crossover_mode not in ['singlepoint', 'kpoint']:
+    raise ValueError("crossover mode must be \'singlepoint\' or \'kpoint\'")
+  
   #Multiple lists for plotting insights after training
   best_fitness = []
   average_fitness = []
@@ -274,7 +273,7 @@ def genetic_algorithm(env, model, population_size, generations, mutation_rate, m
     fitness_scores = []
     # for genome in population:
     #   fitness_scores.append(evaluate(env=env, genome=genome, model=model, n_episodes=15))
-    fitness_scores = evaluate_population_parallel(population, env, model, 15, 10)
+    fitness_scores = evaluate_population_parallel(population, env, model, n_eval_episodes, n_parallelization_workers)
 
     fitness_scores = np.array(fitness_scores)
 
@@ -290,8 +289,7 @@ def genetic_algorithm(env, model, population_size, generations, mutation_rate, m
     if fitness_scores[elite_index] > elite_genome[1]:
       elite_genome = (population[elite_index], fitness_scores[elite_index])
 
-
-    print(f"Generation {generation}, Best Fitness: {fitness_scores[elite_index]}")
+    print(f"{crossover_mode} {RUN_ID} Generation {generation}, Best Fitness: {fitness_scores[elite_index]}")
 
     #Generate the next population using crossover, mutation and top selection
     next_population = []
@@ -300,8 +298,11 @@ def genetic_algorithm(env, model, population_size, generations, mutation_rate, m
       genome_parent1 = top_genomes[idx_parent1]
       genome_parent2 = top_genomes[idx_parent2]
 
-      child_genome = singlepoint_crossover(genome_parent1, genome_parent2)
-      #child_genome = kpoint_crossover(genome_parent1, genome_parent2, 3)
+      if crossover_mode == 'singlepoint':
+        child_genome = singlepoint_crossover(genome_parent1, genome_parent2)
+      elif crossover_mode == 'kpoint':
+        child_genome = kpoint_crossover(genome_parent1, genome_parent2, n_kpoints)
+
       mutated_child_genome = mutate(child_genome, mutation_rate, mutation_scale)
       next_population.append(mutated_child_genome)
 
@@ -309,35 +310,65 @@ def genetic_algorithm(env, model, population_size, generations, mutation_rate, m
     population = np.array(next_population)
   return {'elite_genome': elite_genome, 'best_fitness': best_fitness, 'average_fitness': average_fitness}
 
+if __name__ == "__main__":
+  RUN_ID = None
+  RUN = ['kpoint', 'singlepoint']
+  population_size = 100
+  generations = 200
+  mutation_rate = 0.15
+  mutation_scale = 0.75
+  n_eval_episodes = 25
+  n_kpoints = 3
 
-model = NeuralPolicyModel(8, 16, 4)
-results = genetic_algorithm(env, model, 100, 200, 0.20, 0.1)
-genome = results['elite_genome']
-genome_to_policymodel(genome[0], model)
 
-#Plot the graph for insights in the training
-print(results)
-plt.plot(results["best_fitness"], label="Best fitness")
-plt.plot(results["average_fitness"], label="Average fitness")
-plt.xlabel("Generation")
-plt.ylabel("Fitness")
-plt.title("Fitness progress over generations")
-plt.legend()
-plt.show()
+  for i in range(2):
+    if RUN_ID is None:
+      RUN_ID = "RUN_" + str(np.random.randint(1, np.iinfo(np.int32).max))
 
-# Evaluation (Render in colab)
+    save_folder = RUN[i] + '/' + RUN_ID + "/"
+    if not os.path.exists(save_folder):
+      os.makedirs(save_folder)
+      os.makedirs(save_folder + 'videos/')
 
-# Evaluation (Render locally)
-env_eval = gym.make('LunarLander-v3', render_mode='human')
-obs, info  = env_eval.reset(seed=42)
+    #The initialization of the environment
+    env = gym.make('LunarLander-v3')
+    observation, info = env.reset()
 
-for _ in range(500):
-  observation_tensor = torch.tensor(observation, dtype=torch.double)
-  actions = model(observation_tensor)
-  action = torch.argmax(actions).item()
-  observation, reward, terminated, truncated, info = env_eval.step(action)  
+    with open(save_folder + RUN_ID + "_settings.txt", "w") as file:
+        file.write(f"population_size = {population_size} \n generations = {generations} \n  mutation_rate = {mutation_rate} \n mutation_scale={mutation_scale}\n number_evaluation_episodes={n_eval_episodes}\n number_kpoints={n_kpoints}")
 
-  if terminated or truncated:
-    obs, info  = env_eval.reset(seed=42)
+    model = NeuralPolicyModel(8, 16, 4)
+    torch.save(model.state_dict(), save_folder + "untrained_" + RUN_ID)
 
-env_eval.close()
+    results = genetic_algorithm(env, model, population_size, generations, mutation_rate, mutation_scale, n_eval_episodes = n_eval_episodes, n_kpoints=n_kpoints, crossover_mode = RUN[i], RUN_ID = RUN_ID)
+    genome = results['elite_genome']
+    genome_to_policymodel(genome[0], model)
+
+    torch.save(model.state_dict(), save_folder + "trained_" + RUN_ID)
+
+    #Plot and save the graph for insights in the training
+    plt.figure()
+    plt.plot(results["best_fitness"], label=f"{RUN[i]} best fitness")
+    plt.plot(results["average_fitness"], label=f"{RUN[i]} average fitness")
+    plt.xlabel("Generation")
+    plt.ylabel("Fitness")
+    plt.title("Fitness progress over generations")
+    plt.legend()
+    plt.savefig(save_folder + RUN_ID + "training_fitness_plot_" + RUN_ID + '.png', bbox_inches='tight')
+
+    # Evaluation
+    env_eval = gym.make('LunarLander-v3', render_mode='rgb_array')
+    env_video = gym.wrappers.RecordVideo(env_eval, video_folder=save_folder+"videos/")
+    obs, info  = env_video.reset(seed=42)
+    model.eval()
+
+    for _ in range(500):
+      observation_tensor = torch.tensor(observation, dtype=torch.double)
+      actions = model(observation_tensor)
+      action = torch.argmax(actions).item()
+      observation, reward, terminated, truncated, info = env_video.step(action)  
+
+      if terminated or truncated:
+        obs, info  = env_video.reset(seed=42)
+
+    env_video.close()
