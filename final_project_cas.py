@@ -303,14 +303,13 @@ def genetic_algorithm(env, model, population_size, generations, mutation_rate, m
 if __name__ == "__main__":
   RUN_ID = None
   RUN = ['kpoint', 'singlepoint']
-  population_size = 100
-  generations = 200
-  mutation_rate = 0.15
-  mutation_scale = 0.75
+  population_size = 200
+  generations = 150
+  mutation_rate = 0.2
+  mutation_scale = 0.35
   n_eval_episodes = 25
   n_kpoints = 3
-
-
+  n_top_genomes = int(population_size*0.2)
   for i in range(2):
     if RUN_ID is None:
       RUN_ID = "RUN_" + str(np.random.randint(1, np.iinfo(np.int32).max))
@@ -325,12 +324,12 @@ if __name__ == "__main__":
     observation, info = env.reset()
 
     with open(save_folder + RUN_ID + "_settings.txt", "w") as file:
-        file.write(f"population_size = {population_size} \n generations = {generations} \n  mutation_rate = {mutation_rate} \n mutation_scale={mutation_scale}\n number_evaluation_episodes={n_eval_episodes}\n number_kpoints={n_kpoints}")
+        file.write(f"population_size = {population_size} \n generations = {generations} \n  mutation_rate = {mutation_rate} \n mutation_scale={mutation_scale}\n number_evaluation_episodes={n_eval_episodes}\n number_kpoints={n_kpoints} \n number_top_genomes = {n_top_genomes}")
 
     model = NeuralPolicyModel(8, 16, 4)
     torch.save(model.state_dict(), save_folder + "untrained_" + RUN_ID)
 
-    results = genetic_algorithm(env, model, population_size, generations, mutation_rate, mutation_scale, n_eval_episodes = n_eval_episodes, n_kpoints=n_kpoints, crossover_mode = RUN[i], RUN_ID = RUN_ID)
+    results = genetic_algorithm(env, model, population_size, generations, mutation_rate, mutation_scale, n_top_genomes_selected=n_top_genomes, n_eval_episodes = n_eval_episodes, n_kpoints=n_kpoints, crossover_mode = RUN[i], RUN_ID = RUN_ID)
     genome = results['elite_genome']
     genome_to_policymodel(genome[0], model)
 
@@ -360,5 +359,5 @@ if __name__ == "__main__":
 
       if terminated or truncated:
         obs, info  = env_video.reset(seed=42)
-
+    
     env_video.close()
