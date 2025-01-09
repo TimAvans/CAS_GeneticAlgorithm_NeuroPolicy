@@ -234,7 +234,7 @@ def evaluate_worker(genome, n_episodes):
 
   return fitness
   
-def evaluate_population_parallel(population, env, model, n_episodes = 5, n_workers = 5):
+def evaluate_population_parallel(population, n_episodes = 5, n_workers = 5):
   '''
   '''
   with ProcessPoolExecutor(max_workers=n_workers) as executor:
@@ -242,7 +242,7 @@ def evaluate_population_parallel(population, env, model, n_episodes = 5, n_worke
   return np.array(fitness_scores)
 
 # Training
-def genetic_algorithm(env, model, population_size, generations, mutation_rate, mutation_scale, n_eval_episodes = 15, crossover_mode = 'singlepoint', n_kpoints = 3, RUN_ID = None, n_parallelization_workers = 10):
+def genetic_algorithm(env, model, population_size, generations, mutation_rate, mutation_scale, n_eval_episodes = 15, n_top_genomes_selected = 15, crossover_mode = 'singlepoint', n_kpoints = 3, RUN_ID = None, n_parallelization_workers = 10):
   '''
   '''
   if crossover_mode not in ['singlepoint', 'kpoint']:
@@ -263,7 +263,7 @@ def genetic_algorithm(env, model, population_size, generations, mutation_rate, m
     fitness_scores = []
     # for genome in population:
     #   fitness_scores.append(evaluate(env=env, genome=genome, model=model, n_episodes=15))
-    fitness_scores = evaluate_population_parallel(population, env, model, n_eval_episodes, n_parallelization_workers)
+    fitness_scores = evaluate_population_parallel(population, n_eval_episodes, n_parallelization_workers)
 
     fitness_scores = np.array(fitness_scores)
 
@@ -272,7 +272,7 @@ def genetic_algorithm(env, model, population_size, generations, mutation_rate, m
     average_fitness.append(np.mean(fitness_scores))
 
     #Use selection to select the top genomes of the population
-    top_genomes = selection(population=population, fitness=fitness_scores, n_selected=15)
+    top_genomes = selection(population=population, fitness=fitness_scores, n_selected=n_top_genomes_selected)
 
     #Select the elite genome we want to carry over to the next generation and save until a better one emerges
     elite_index = np.argmax(fitness_scores)
