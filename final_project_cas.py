@@ -120,7 +120,7 @@ def kpoint_crossover(parent1, parent2, k):
   start = 0
   #Loop through the randomly generated crossover points
   for i, point in enumerate(crossover_points):
-    #If the k-value is an even number take from parent 1
+    #If the k-value index is an even number take from parent 1
     if i % 2 == 0:
       offspring.extend(parent1[start:point])
     #If it is an uneven number take from parent 2
@@ -303,10 +303,10 @@ def genetic_algorithm(env, model, population_size, generations, mutation_rate, m
 if __name__ == "__main__":
   RUN_ID = None
   RUN = ['kpoint', 'singlepoint']
-  population_size = 200
-  generations = 150
-  mutation_rate = 0.2
-  mutation_scale = 0.35
+  population_size = 100
+  generations = 200
+  mutation_rate = 0.15
+  mutation_scale = 0.75
   n_eval_episodes = 25
   n_kpoints = 3
   n_top_genomes = int(population_size*0.2)
