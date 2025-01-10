@@ -16,47 +16,12 @@ import os
 from concurrent.futures import ProcessPoolExecutor
 
 '''
-Simple implementation: https://medium.com/@yauheniya.ai/solving-the-lunar-lander-with-genetic-algorithms-ef80c1376cfa
-Generational genetic algorithm: https://danyagordin.com/static/media/dqn.9579cf0e6e41fa46cf8c.pdf
-environment used: https://www.gymlibrary.dev/
-General information: https://en.wikipedia.org/wiki/Evolutionary_algorithm
-
-Maybe compare the results of the simple and a true neural policy?
-
-Use package openai gym for the environment
-Objective:
-Invesitgate how genetic algorithms can be used to optimize a neural policy.
-Metrics:
-Converging speed, Efficiency (amount of episodes needed to train),
-Performance (average reward of the final policy over fixed nuber of evaluation episodes)
-Baseline?:
-We might need a baseline to compare against
-(simple: maybe just a random policy to show improvement)
-(harder: gradient method: reinforce or deep q-learning)
-Parameters:
-Population size, mutation rate, crossover-prob
-Complete procedure (the complete experiment):
-Initialization -> randomly init wieghts
-evaluation -> run the starting policy in the chosen environment for baseline
-iterate ->
-GeneticAlgorithm:
-Use a selection to choose only the top percentage of high-performing policies
-Use a crossover to combine parameters of the selected top policies
-Add a random noise to mutate the "offspring" policies
-
-evaluate more-> evaluate the policy every e.g. 5 iterations for results
-
-use multiple seeds (test multiple) for reproducibility and testing more accurately
-'''
-
-'''
 LunarLander actions:
 0: do nothing,
 1: fire left orientation engine,
 2: fire main engine,
 3: fire right orientation engine
 '''
-
 class NeuralPolicyModel(nn.Module):
   '''
   This is a simple model that will function as policy.
