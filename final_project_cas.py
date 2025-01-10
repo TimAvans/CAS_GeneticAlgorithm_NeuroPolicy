@@ -222,6 +222,12 @@ def evaluate(env, genome, model, n_episodes=5):
   return total_r / n_episodes
 
 def evaluate_worker(genome, n_episodes):
+  '''
+  The worker for parallelization of evaluation.
+  :param genome: The genome to evaluate
+  :param n_episodes: The amount of episodes to evaluate for.
+  :return: The fitness of this genome.
+  '''
   #Each process creates its own environment
   temp_env = gym.make('LunarLander-v3')
 
@@ -236,14 +242,32 @@ def evaluate_worker(genome, n_episodes):
   
 def evaluate_population_parallel(population, n_episodes = 5, n_workers = 5):
   '''
+  Run the evaluation in parallel using process pool executor
+  :param population: Population to evaluate.
+  :param n_episodes: Number of episodes to evaluate.
+  :param n_workers: Amount of workers for ProcessPoolExecutor
+  :return: An array of fitness scores.
   '''
   with ProcessPoolExecutor(max_workers=n_workers) as executor:
         fitness_scores = list(executor.map(evaluate_worker, population, [n_episodes] * len(population)))
   return np.array(fitness_scores)
 
 # Training
-def genetic_algorithm(env, model, population_size, generations, mutation_rate, mutation_scale, n_eval_episodes = 15, n_top_genomes_selected = 15, crossover_mode = 'singlepoint', n_kpoints = 3, RUN_ID = None, n_parallelization_workers = 10):
+def genetic_algorithm(model, population_size, generations, mutation_rate, mutation_scale, n_eval_episodes = 15, n_top_genomes_selected = 15, crossover_mode = 'singlepoint', n_kpoints = 3, RUN_ID = None, n_parallelization_workers = 10):
   '''
+  The training of the policy with the genetic algorithms.
+  :param model: The model used for training.
+  :param population_size: The total size of the population.
+  :param generations: The amount of generations to train for.
+  :param mutation_rate: The rate of mutation < 1.
+  :param mutation_scale: The scale of the mutation < 1.
+  :param n_eval_episodes: The amount of episodes for evaluation.
+  :param n_top_genomes_selected: The amount of top genomes to select.
+  :param crossover_mode: The crossover mode kpoint or singlepoint.
+  :param n_kpoints: The amount of k points for kpoint crossover mode.
+  :param RUN_ID: The run id.
+  :param n_parallelization_workers: The amount of parallelization workers.
+  :return: Dictionary with the elite genome, best fitness array and average fitness array.
   '''
   if crossover_mode not in ['singlepoint', 'kpoint']:
     raise ValueError("crossover mode must be \'singlepoint\' or \'kpoint\'")
@@ -319,17 +343,13 @@ if __name__ == "__main__":
       os.makedirs(save_folder)
       os.makedirs(save_folder + 'videos/')
 
-    #The initialization of the environment
-    env = gym.make('LunarLander-v3')
-    observation, info = env.reset()
-
     with open(save_folder + RUN_ID + "_settings.txt", "w") as file:
         file.write(f"population_size = {population_size} \n generations = {generations} \n  mutation_rate = {mutation_rate} \n mutation_scale={mutation_scale}\n number_evaluation_episodes={n_eval_episodes}\n number_kpoints={n_kpoints} \n number_top_genomes = {n_top_genomes}")
 
     model = NeuralPolicyModel(8, 16, 4)
     torch.save(model.state_dict(), save_folder + "untrained_" + RUN_ID)
 
-    results = genetic_algorithm(env, model, population_size, generations, mutation_rate, mutation_scale, n_top_genomes_selected=n_top_genomes, n_eval_episodes = n_eval_episodes, n_kpoints=n_kpoints, crossover_mode = RUN[i], RUN_ID = RUN_ID)
+    results = genetic_algorithm( model, population_size, generations, mutation_rate, mutation_scale, n_top_genomes_selected=n_top_genomes, n_eval_episodes = n_eval_episodes, n_kpoints=n_kpoints, crossover_mode = RUN[i], RUN_ID = RUN_ID)
     genome = results['elite_genome']
     genome_to_policymodel(genome[0], model)
 
